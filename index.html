@@ -445,40 +445,72 @@ render()
 
 function undo(){
 
- if(history.length === 0) return
+    if(history.length === 0) return;
 
- // ลบล่าสุด
- history.pop()
+    // ลบล่าสุด
+    let removed = history.pop();
 
- // รีเซ็ตเฉพาะการคำนวณ
- dna = Array.from({length:STRATEGY_COUNT},()=>[])
- last = Array(STRATEGY_COUNT).fill(null)
+    // ลบผล DQN เฉพาะตอน Undo P/B
+    if(removed !== "T" && dqnHistory.length){
+
+        let lastResult = dqnHistory.pop();
+
+        if(lastResult === "✅"){
+            dqnWin--;
+        }else{
+            dqnLose--;
+        }
+
+        if(dqnWin < 0) dqnWin = 0;
+        if(dqnLose < 0) dqnLose = 0;
+    }
+
+    // รีเซ็ตเฉพาะการคำนวณ
+    dna = Array.from({length:STRATEGY_COUNT},()=>[]);
+    last = Array(STRATEGY_COUNT).fill(null);
 
  // รีคำนวณ DNA ใหม่จาก history ที่เหลือ
  let clean = history.filter(x => x !== 'T')
 
  for(let n=0; n<clean.length; n++){
 
-   let partial = clean.slice(0, n + 1)
+    let partial = clean.slice(0,n+1);
 
-   if(partial.length > 1){
+    if(partial.length>1){
 
-     strategyDefs.forEach((def,i)=>{
+        strategyDefs.forEach((def,i)=>{
 
-       let pick = def[2](partial.slice(0,-1))
-       let actual = partial[partial.length - 1]
+            let prev = partial.slice(0,-1);
 
-       dna[i].push(
-         pick === actual ? '✅' : '❌'
-       )
+            let pick = def[2](prev);
 
-       if(dna[i].length > 50){
-         dna[i].shift()
-       }
-     })
-   }
- }
+            // อัปเดตค่าทำนายล่าสุดของแต่ละสาย
+            last[i] = pick;
 
+            let actual = partial[partial.length-1];
+
+            dna[i].push(
+                pick===actual ? '✅' : '❌'
+            );
+
+            if(dna[i].length>50){
+                dna[i].shift();
+            }
+
+        });
+
+    }
+
+}
+
+// คำนวณตัวแทงปัจจุบันใหม่
+let s = history.filter(x=>x!=='T');
+
+if(s.length){
+    strategyDefs.forEach((def,i)=>{
+        last[i] = def[2](s);
+    });
+}
  // ไม่ล้าง AI Memory
  // ไม่ล้าง Q
  // ไม่ล้าง patternMemory
